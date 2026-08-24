@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HABIT TRACKER</title>
+    <link rel="stylesheet" href="t_p_2.4.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+</head>
+
+<body id="body">
+
+    <!-- LEFT -->
+    <div class="left">
+
+        <h3><i class="fa-mosaic fa-solid fa-clock"></i> Habit Tracker</h3>
+
+        <nav class="left_menu">
+
+            <button id="main_menu_home"><i class="fa-solid fa-home"></i> Home</button>
+            <button id="main_menu_habits"><i class="fa-solid fa-list"></i> Habits</button>
+            <button id="main_menu_statistics"><i class="fa-solid fa-arrow-trend-up"></i> Statistics</button>
+            <a href="#" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+
+        </nav>
+
+        {% if show_normal_mode %}
+        <select id="n_or_p" onclick='n_or_p()'>
+            {% if show_normal_mode %}
+            <option value="0"> Normal Mode </option>
+            {% endif %}
+            <option value="1"> Pro Mode</option>
+        </select>
+        {% endif %}
+
+    </div>
+
+    <div>
+
+        <!-- NORMAL RIGHT -->
+        <div class="normal_right">
+
+            <!-- HOME PAGE -->
+            <div class="normal_home_page">
+
+                <h2><i class="fa-solid fa-house-tsunami"></i> Home</h2>
+                <span>Keep going! Small steps every day.</span>
+
+                <button class="noti_btn"><i class="fa-solid fa-bell"></i></button>
+
+                <div class="right_header_menu">
+
+                    <div class="h_menu">
+                        <p
+                            style="padding: 10px; border-radius: 30px; background-color: rgb(66, 241, 66 , 0.8); box-shadow: 0px 0px 10px rgba(97, 230, 102, 0.9); font-size: 1.3em;">
+                            <i class="fa-solid fa-check"></i>
+                        </p>
+                        <div>
+                            <h2 id="completedTodayValue">3</h2>
+                            <label>Completed Today</label>
+                        </div>
+                    </div>
+
+                    <div class="h_menu">
+                        <p
+                            style="padding: 10px; border-radius: 30px; background-color: rgba(217, 214, 34, 0.8);  box-shadow:  0px 0px 15px rgba(226, 193, 71, 0.9); font-size: 1.3em;">
+                            <i class="fa-solid fa-clipboard-list"></i>
+                        </p>
+                        <div>
+                            <h2 id="todayHabitsValue">8</h2>
+                            <label>Today Habits</label>
+                        </div>
+                    </div>
+
+                    <div class="h_menu">
+                        <p
+                            style="padding: 10px; border-radius: 30px; background-color: rgba(208, 34, 217, 0.3);  box-shadow:  0px 0px 15px rgba(201, 83, 228, 0.9); font-size: 1.3em;">
+                            <i class="fa-solid fa-arrow-trend-up"></i>
+                        </p>
+                        <div>
+                            <h2 id="todayRateValue">35%</h2>
+                            <label>Today Rate</label>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="lists">
+
+                    <h3>Today's Habits</h3>
+
+                    <ul id="todayHabitsList">
+                        <li>
+                            <div>
+                                <span>No habits scheduled today.</span>
+                            </div>
+                        </li>
+                    </ul>
+
+                </div>
+
+            </div>
+
+            <!-- HABIT PAGE -->
+            <div class="normal_habits_page remove">
+
+                <h2><i class="fa-solid fa-list"></i> Create New Habit</h2>
+
+                <button class="noti_btn" style="left: 95%; bottom: 10px;"><i class="fa-solid fa-bell"></i></button>
+
+                <div class="main_box">
+
+                    <div class="m_b_left">
+
+                        <h2 style="text-align: center; margin-bottom: 25px;"><i class="fa-solid fa-book"></i> Weekly
+                            Habit</h2>
+
+                        <label for="">Habit Name <i class="fa-solid fa-pen" style="font-size: .8em;"></i></label>
+                        <br>
+                        <input id="normal_weekly_habit_name" type="text" placeholder="e.g.Reading Books">
+
+                        <div>
+
+                            <nav>
+                                <label for="">Start Time</label>
+                                <br>
+                                <input id="normal_weekly_start_time" type="time">
+                            </nav>
+
+                            <nav>
+                                <label for="">End Time</label>
+                                <br>
+                                <input id="normal_weekly_end_time" type="time">
+                            </nav>
+
+                        </div>
+
+                        <div class="m_b_l_months">
+
+                            <label style="margin-bottom: -10px; font-size: .9em;">Months</label>
+
+                            <div>
+                                <nav>
+                                    <input type="checkbox" id="jan" style="display: none;">
+                                    <label for="jan">Jan</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="feb" style="display: none;">
+                                    <label for="feb">Feb</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="mar" style="display: none;">
+                                    <label for="mar">Mar</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="apr" style="display: none;">
+                                    <label for="apr">Apr</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="may" style="display: none;">
+                                    <label for="may">May</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="jun" style="display: none;">
+                                    <label for="jun">Jun</label>
+                                </nav>
+                            </div>
+
+                            <div>
+                                <nav>
+                                    <input type="checkbox" id="jul" style="display: none;">
+                                    <label for="jul">Jul</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="aug" style="display: none;">
+                                    <label for="aug">Aug</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="sep" style="display: none;">
+                                    <label for="sep">Sep</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="oct" style="display: none;">
+                                    <label for="oct">Oct</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="nov" style="display: none;">
+                                    <label for="nov">Nov</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="dec" style="display: none;">
+                                    <label for="dec">Dec</label>
+                                </nav>
+                            </div>
+
+                        </div>
+
+                        <div class="m_b_l_week">
+
+                            <label style="display: block; font-size: .9em;">Weekdays</label>
+
+                            <nav>
+                                <input type="checkbox" id="mon" style="display: none;">
+                                <label for="mon">Mon</label>
+
+                                <input type="checkbox" id="tue" style="display: none;">
+                                <label for="tue">Tue</label>
+
+                                <input type="checkbox" id="wed" style="display: none;">
+                                <label for="wed">Wed</label>
+
+                                <input type="checkbox" id="thu" style="display: none;">
+                                <label for="thu">Thu</label>
+
+                                <input type="checkbox" id="fri" style="display: none;">
+                                <label for="fri">Fri</label>
+
+                                <input type="checkbox" id="sat" style="display: none;">
+                                <label for="sat">Sat</label>
+
+                                <input type="checkbox" id="sun" style="display: none;">
+                                <label for="sun">Sun</label>
+                            </nav>
+
+                        </div>
+
+                        <button id="normal_weekly_habit_submit">Create Habits</button>
+
+                    </div>
+
+                    <div class="m_b_right">
+
+                        <h2 style="text-align: center; margin-bottom: 25px;"><i class="fa-solid fa-calendar"></i> Custom
+                            Schedule</h2>
+
+                        <label for="">Habit Name <i class="fa-solid fa-pen" style="font-size: .8em;"></i></label>
+                        <br>
+                        <input id="normal_custom_habit_name" type="text" placeholder="e.g.Reading Books">
+
+                        <div>
+
+                            <nav>
+                                <label for="">Start Time</label>
+                                <br>
+                                <input id="normal_custom_start_time" type="time">
+                            </nav>
+
+                            <nav>
+                                <label for="">End Time</label>
+                                <br>
+                                <input id="normal_custom_end_time" type="time">
+                            </nav>
+
+                        </div>
+
+                        <div class="select">
+
+                            <input id="normal_custom_habit_date" type="date">
+
+                        </div>
+
+                        <button id="normal_custom_habit_submit">Create Habits</button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- PRO RIGHT -->
+        <div class="pro_right">
+
+            <!-- HOME PAGE -->
+            <div class="pro_home_page">
+
+                <h2><i class="fa-solid fa-house-tsunami"></i> Home (Pro Mode)</h2>
+                <span>Keep going! Small steps every day.</span>
+
+                <button class="noti_btn"><i class="fa-solid fa-bell"
+                        style="color: aqua; box-shadow: 0px 10px 15px rgba(37, 191, 243, 0.6);"></i></button>
+
+                <div class="right_header_menu">
+
+                    <div class="h_menu" style="border: 1px dotted rgb(89, 255, 47);">
+                        <p
+                            style="padding: 10px; border-radius: 45px; background-color: rgba(66, 222, 66, 0.8); box-shadow: 0px 0px 10px rgba(97, 230, 102, 0.9); font-size: 1.3em;">
+                            <i class="fa-solid fa-check"></i>
+                        </p>
+                        <div>
+                            <h2 id="completedTodayValuePro">3</h2>
+                            <label>Completed Today</label>
+                        </div>
+                    </div>
+
+                    <div class="h_menu" style="border: 1px dotted yellow;">
+                        <p
+                            style="padding: 10px; border-radius: 30px; background-color: rgba(217, 214, 34, 0.8);  box-shadow:  0px 0px 15px rgba(226, 193, 71, 0.9); font-size: 1.3em;">
+                            <i class="fa-solid fa-clipboard-list"></i>
+                        </p>
+                        <div>
+                            <h2 id="todayHabitsValuePro">8</h2>
+                            <label>Today Habits</label>
+                        </div>
+                    </div>
+
+                    <div class="h_menu" style="border: 1px dotted rgb(255, 4, 0);">
+                        <p
+                            style="padding: 10px; border-radius: 30px; background-color: rgba(237, 69, 69, 0.8);  box-shadow:  0px 0px 15px rgba(226, 71, 71, 0.9); font-size: 1.3em;">
+                            ❌</p>
+                        <div>
+                            <h2 id="missedHabitsValuePro">2</h2>
+                            <label>Missed Habits</label>
+                        </div>
+                    </div>
+
+                    <div class="h_menu" style="border: 1px dotted violet;">
+                        <p
+                            style="padding: 10px; border-radius: 30px; background-color: rgba(208, 34, 217, 0.8);  box-shadow:  0px 0px 15px rgba(211, 107, 234, 0.9); font-size: 1.3em;">
+                            <i class="fa-solid fa-arrow-trend-up"></i>
+                        </p>
+                        <div>
+                            <h2 id="todayRateValuePro">35%</h2>
+                            <label>Today Rate</label>
+                        </div>
+                    </div>
+
+                </div>
+
+                <br>
+                <hr>
+
+                <ul id="todayHabitsListPro">
+
+                    <nav class="li">
+                        <h2 style="font-size: 1em;">Today's Habits (Time-based)</h2>
+                        <span style="font-size: .8em;">Start Time</span>
+                        <span style="font-size: .8em;">End Time</span>
+                        <span style="font-size: .8em; margin-left: 20px;">Status</span>
+                    </nav>
+
+                    <br><br>
+
+                </ul>
+
+            </div>
+
+            <!-- HABIT ADD PAGE -->
+            <div class="pro_habit_page remove">
+                <!-- <div>
+                            
+                        <label style="font-size: 1.2em;">Habit Name <i class="fa-solid fa-pen"></i></label>
+                        <br>
+                        <input type="text" placeholder="e.g.Reading Book" class="habit_name">
+
+                        <br><br>
+
+                        <label>Start Time</label>
+                        <input type="time">
+
+                        <br><br>
+
+                        <label>End Time</label>
+                        <input type="time">
+
+                        <br><br>
+
+                        <label>Note</label>
+                        <br>
+                        <textarea id="" placeholder="Note...." style="padding: 15px; height: 130px; width: 100%; resize: none;"></textarea>
+
+                    </div>
+
+                    <div style="border-left: 1px solid #fff; padding: 10px;">
+
+                        <div class="months">
+
+                            <label style="margin-bottom: -10px; font-size: .9em;">Months</label>
+
+                            <div>
+                                <nav>
+                                <input type="checkbox" id="jan2" style="display: none;">
+                                <label for="jan2">Jan</label>
+                                </nav>
+
+                                <nav>
+                                <input type="checkbox" id="feb2" style="display: none;">
+                                <label for="feb2">Feb</label>
+                                </nav>
+
+                                <nav>
+                                <input type="checkbox" id="mar2" style="display: none;">
+                                <label for="mar2">Mar</label>
+                                </nav>
+
+                                <nav>
+                                <input type="checkbox" id="apr2" style="display: none;">
+                                <label for="apr2">Apr</label>
+                                </nav>
+
+                                <nav>
+                                <input type="checkbox" id="may2" style="display: none;">
+                                <label for="may2">May</label>
+                                </nav>
+
+                                <nav>
+                                <input type="checkbox" id="jun2" style="display: none;">
+                                <label for="jun2">Jun</label>
+                                </nav>
+                            </div>
+
+                            <div>
+                                <nav>
+                                <input type="checkbox" id="jul2" style="display: none;">
+                                <label for="jul2">Jul</label>
+                                </nav>
+
+                                <nav>
+                                <input type="checkbox" id="aug2" style="display: none;">
+                                <label for="aug2">Aug</label>
+                                </nav>
+
+                                <nav>
+                                <input type="checkbox" id="sep2" style="display: none;">
+                                <label for="sep2">Sep</label>
+                                </nav>
+
+                                <nav>
+                                <input type="checkbox" id="oct2" style="display: none;">
+                                <label for="oct2">Oct</label>
+                                </nav>
+
+                                <nav>
+                                <input type="checkbox" id="nov2" style="display: none;">
+                                <label for="nov2">Nov</label>
+                                </nav>
+
+                                <nav>
+                                <input type="checkbox" id="dec2" style="display: none;">
+                                <label for="dec2">Dec</label>
+                                </nav>
+                            </div>
+
+                        </div>
+
+                        <div class="week">
+
+                            <label style="display: block; font-size: .9em;">Weekdays</label>
+
+                            <nav>
+                                <input type="checkbox" id="mon2" style="display: none;">
+                                <label for="mon2">Mon</label>
+
+                                <input type="checkbox" id="tue2" style="display: none;">
+                                <label for="tue2">Tue</label>
+
+                                <input type="checkbox" id="wed2" style="display: none;">
+                                <label for="wed2">Wed</label>
+
+                                <input type="checkbox" id="thu2" style="display: none;">
+                                <label for="thu2">Thu</label>
+
+                                <input type="checkbox" id="fri2" style="display: none;">
+                                <label for="fri2">Fri</label>
+
+                                <input type="checkbox" id="sat2" style="display: none;">
+                                <label for="sat2">Sat</label>
+
+                                <input type="checkbox" id="sun2" style="display: none;">
+                                <label for="sun2">Sun</label>
+                            </nav>
+
+                        </div>
+
+                        <button id="cancle_btn" style="position: relative; left: 35%; background-color: black; color: #fff; border: 1px solid red;">Cancle</button>
+                        <button style="position: relative; left: 40%;">Create Habits</button>
+
+                    </div> -->
+
+                <div class="input_data">
+
+                    <div class="m_b_left" style="border-right: 1px solid #eff3f4;">
+
+                        <h2 style="text-align: center; margin-bottom: 25px;"><i class="fa-solid fa-book"></i> Weekly
+                            Habit</h2>
+
+                        <label for="">Habit Name <i class="fa-solid fa-pen" style="font-size: .8em;"></i></label>
+                        <br>
+                        <input id="pro_weekly_habit_name" type="text" placeholder="e.g.Reading Books">
+
+                        <div>
+
+                            <nav>
+                                <label for="">Start Time</label>
+                                <br>
+                                <input id="pro_weekly_start_time" type="time">
+                            </nav>
+
+                            <nav>
+                                <label for="">End Time</label>
+                                <br>
+                                <input id="pro_weekly_end_time" type="time">
+                            </nav>
+
+                        </div>
+
+                        <div class="m_b_l_months">
+
+                            <label style="margin-bottom: -10px; font-size: .9em;">Months</label>
+
+                            <div>
+                                <nav>
+                                    <input type="checkbox" id="jan2" style="display: none;">
+                                    <label for="jan2">Jan</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="feb2" style="display: none;">
+                                    <label for="feb2">Feb</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="mar2" style="display: none;">
+                                    <label for="mar2">Mar</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="apr2" style="display: none;">
+                                    <label for="apr2">Apr</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="may2" style="display: none;">
+                                    <label for="may2">May</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="jun2" style="display: none;">
+                                    <label for="jun2">Jun</label>
+                                </nav>
+                            </div>
+
+                            <div>
+                                <nav>
+                                    <input type="checkbox" id="jul2" style="display: none;">
+                                    <label for="jul2">Jul</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="aug2" style="display: none;">
+                                    <label for="aug2">Aug</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="sep2" style="display: none;">
+                                    <label for="sep2">Sep</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="oct2" style="display: none;">
+                                    <label for="oct2">Oct</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="nov2" style="display: none;">
+                                    <label for="nov2">Nov</label>
+                                </nav>
+
+                                <nav>
+                                    <input type="checkbox" id="dec2" style="display: none;">
+                                    <label for="dec2">Dec</label>
+                                </nav>
+                            </div>
+
+                        </div>
+
+                        <div class="m_b_l_week">
+
+                            <label style="display: block; font-size: .9em;">Weekdays</label>
+
+                            <nav>
+                                <input type="checkbox" id="mon2" style="display: none;">
+                                <label for="mon2">Mon</label>
+
+                                <input type="checkbox" id="tue2" style="display: none;">
+                                <label for="tue2">Tue</label>
+
+                                <input type="checkbox" id="wed2" style="display: none;">
+                                <label for="wed2">Wed</label>
+
+                                <input type="checkbox" id="thu2" style="display: none;">
+                                <label for="thu2">Thu</label>
+
+                                <input type="checkbox" id="fri2" style="display: none;">
+                                <label for="fri2">Fri</label>
+
+                                <input type="checkbox" id="sat2" style="display: none;">
+                                <label for="sat2">Sat</label>
+
+                                <input type="checkbox" id="sun2" style="display: none;">
+                                <label for="sun2">Sun</label>
+                            </nav>
+
+                        </div>
+
+                        <button id="pro_weekly_habit_submit">Create Habits</button>
+
+                    </div>
+
+                    <div class="m_b_right">
+
+                        <h2 style="text-align: center; margin-bottom: 25px;"><i class="fa-solid fa-calendar"></i> Custom
+                            Schedule</h2>
+
+                        <label for="">Habit Name <i class="fa-solid fa-pen" style="font-size: .8em;"></i></label>
+                        <br>
+                        <input id="pro_custom_habit_name" type="text" placeholder="e.g.Reading Books">
+
+                        <div>
+
+                            <nav>
+                                <label for="">Start Time</label>
+                                <br>
+                                <input id="pro_custom_start_time" type="time">
+                            </nav>
+
+                            <nav>
+                                <label for="">End Time</label>
+                                <br>
+                                <input id="pro_custom_end_time" type="time">
+                            </nav>
+
+                        </div>
+
+                        <div class="select">
+
+                            <input id="pro_custom_habit_date" type="date">
+
+                        </div>
+
+                        <button id="pro_custom_habit_submit">Create Habits</button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- STATISTICS PAGE -->
+            <div class="statistics remove">
+
+                <div class="grab_and_streak">
+                    <div class="grab">
+                        <canvas id="rate_data"></canvas>
+                    </div>
+
+                    <div class="streak">
+                        <h4>Streak 🔥</h4>
+                        <br><br>
+                        <label for="h3">8 days</label>
+                    </div>
+                </div>
+
+                <div class="lists_completed">
+
+                    <div class="calendar_header">
+                        <button id="back_btn">
+                            < </button>
+
+                                <h3><span id="month"></span> <span id="year"></span></h3>
+
+                                <button id="text_btn"> > </button>
+                    </div>
+
+                    <br>
+
+                    <div class="lists_data_menu">
+                        <label for="">Habit Name</label>
+                        <label for="">Total Time (min)</label>
+                        <label for="">Completion Rate (%)</label>
+                    </div>
+
+                    <br>
+
+                    <div class="lists_and_checked">
+                        <ul id="lists_checked_completed_missed"></ul>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script src="jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="config.js"></script>
+    <script src="calendar.js"></script>
+    <script src="habits.js"></script>
+    <script src="statistics.js"></script>
+    <script src="main.js"></script>
+
+</body>
+
+</html>
