@@ -513,6 +513,8 @@ input:checked+label {
     justify-content: center;
 }
 
+
+
 .input_data {
 
     display: grid;
@@ -695,6 +697,20 @@ input:checked+label {
     height: 65vh;
 }
 
+.lists_of_daily_habits ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    scrollbar-width: none;
+    height: 64vh;
+    margin-top: 5px;
+    padding: 12px 10px;
+    border-radius: 10px;
+    background-color: rgba(1, 13, 23, 0.3);
+    box-shadow: 0px 1px 10px rgba(16, 17, 19, 0.4);
+}
+
 .lists_data_menu,
 .lists_and_checked ul li {
     display: grid;
@@ -747,4 +763,66 @@ input:checked+label {
 .remove {
 
     display: none;
+}
+
+/* YEAR SELECT — shared base */
+.year_select {
+    padding: 10px;
+    margin-bottom: 20px;
+    margin-top: 5px;
+    border-radius: 10px;
+    font-size: 1em;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px;
+    transition: box-shadow .3s;
+}
+
+/* Normal form (light mint theme, matches .m_b_left input) */
+.m_b_left .year_select,
+.m_b_right .year_select {
+    width: 95%;
+    background-color: rgb(202, 229, 229);
+    color: #0a2b2b;
+    border: none;
+    box-shadow: 0px 2px 15px rgba(3, 3, 14, 0.4);
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230a2b2b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.m_b_left .year_select:hover,
+.m_b_right .year_select:hover {
+    box-shadow: 0px 2px 20px rgba(64, 210, 203, 0.7);
+}
+
+.m_b_left .year_select option,
+.m_b_right .year_select option {
+    background-color: rgb(202, 229, 229);
+    color: #0a2b2b;
+}
+
+/* Pro form (dark navy theme, matches .input_data) */
+.input_data .year_select {
+    width: 100%;
+    background-color: rgba(1, 13, 23, 0.6);
+    color: #eff3f4;
+    border: 1px solid #2dcdf5;
+    box-shadow: 0px 2px 15px rgba(3, 3, 4, 0.6);
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232dcdf5' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.input_data .year_select:hover {
+    box-shadow: 0px 0px 15px rgba(45, 205, 245, 0.8);
+}
+
+.input_data .year_select:focus {
+    outline: none;
+    box-shadow: 0px 0px 18px rgba(45, 205, 245, 1);
+}
+
+.input_data .year_select option {
+    background-color: #010d17;
+    color: #eff3f4;
 }
