@@ -285,13 +285,6 @@
 
             <!-- HOME PAGE -->
             <div class="pro_home_page">
-
-                <h2><i class="fa-solid fa-house-tsunami"></i> Home (Pro Mode)</h2>
-                <span>Keep going! Small steps every day.</span>
-
-                <button class="noti_btn"><i class="fa-solid fa-bell"
-                        style="color: aqua; box-shadow: 0px 10px 15px rgba(37, 191, 243, 0.6);"></i></button>
-
                 <div class="right_header_menu">
 
                     <div class="h_menu" style="border: 1px dotted rgb(89, 255, 47);">
@@ -341,19 +334,20 @@
 
                 <br>
                 <hr>
-
-                <ul id="todayHabitsListPro">
-
+                <ul>
                     <nav class="li">
-                        <h2 style="font-size: 1em;">Today's Habits (Time-based)</h2>
-                        <span style="font-size: .8em;">Start Time</span>
-                        <span style="font-size: .8em;">End Time</span>
-                        <span style="font-size: .8em; margin-left: 20px;">Status</span>
+                        <h2 style="font-size: 1.5em;">Today's Habits (Time-based)</h2>
+                        <span style="font-size: 1.2em;">Start Time</span>
+                        <span style="font-size: 1.2em;">End Time</span>
+                        <span style="font-size: 1.2em; margin-left: 45px;">Status</span>
                     </nav>
-
-                    <br><br>
-
                 </ul>
+
+                <div class="lists_of_daily_habits">
+                    <ul id="todayHabitsListPro">
+
+                    </ul>
+                </div>
 
             </div>
 
@@ -493,8 +487,10 @@
 
                     <div class="m_b_left" style="border-right: 1px solid #eff3f4;">
 
-                        <h2 style="text-align: center; margin-bottom: 25px;"><i class="fa-solid fa-book"></i> Weekly
-                            Habit</h2>
+                        <h2 style="text-align: center; margin-bottom: 25px;">
+                            <i class="fa-solid fa-book"></i>
+                            Weekly Habit
+                        </h2>
 
                         <label for="">Habit Name <i class="fa-solid fa-pen" style="font-size: .8em;"></i></label>
                         <br>
@@ -517,6 +513,22 @@
                         </div>
 
                         <div class="m_b_l_months">
+
+                            <label for="">Year</label>
+                            <br>
+                            <select id="pro_weekly_habit_year" class="year_select">
+                                <option value="2026" selected>2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                                <option value="2030">2030</option>
+                                <option value="2027">2031</option>
+                                <option value="2028">2032</option>
+                                <option value="2029">2033</option>
+                                <option value="2030">2034</option>
+                                <option value="2027">2035</option>
+                                <option value="2028">2036</option>
+                            </select>
 
                             <label style="margin-bottom: -10px; font-size: .9em;">Months</label>
 
@@ -678,10 +690,8 @@
                     <div class="calendar_header">
                         <button id="back_btn">
                             < </button>
-
-                                <h3><span id="month"></span> <span id="year"></span></h3>
-
-                                <button id="text_btn"> > </button>
+                                <h3><span id="month"></span> <span id="year"></span></h3><button id="text_btn"> >
+                                </button>
                     </div>
 
                     <br>
