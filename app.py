@@ -248,14 +248,25 @@ def api_statistics(user_id=None):
 @app.route('/api/statistics/daily', methods=['GET'])
 @login_required
 def api_daily_stats():
-    return jsonify(real_statistics.get_daily_completion_rates(session['user_id'])), 200
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    if year and month:
+        data = real_statistics.get_daily_completion_rates_for_month(session['user_id'], year, month)
+    else:
+        data = real_statistics.get_daily_completion_rates(session['user_id'])
+    return jsonify(data), 200
 
 
 @app.route('/api/statistics/habits', methods=['GET'])
 @login_required
 def api_habit_breakdown():
-    return jsonify(real_statistics.get_per_habit_breakdown(session['user_id'])), 200
-
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    if year and month:
+        data = real_statistics.get_per_habit_breakdown_for_month(session['user_id'], year, month)
+    else:
+        data = real_statistics.get_per_habit_breakdown(session['user_id'])
+    return jsonify(data), 200
 
 database.init_db()
 
