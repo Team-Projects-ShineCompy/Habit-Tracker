@@ -28,6 +28,7 @@ function n_or_p() {
 function showHomeSummary(summary) {
     const completedToday = Number(summary.completed_today || 0);
     const scheduledToday = Number(summary.today_habits || 0);
+    const missedHabitsValue = Number(summary.today_habits - summary.completed_today || 0);
     const percent = Number(summary.today_rate || 0);
 
     $('#completedTodayValue').text(completedToday);
@@ -35,6 +36,7 @@ function showHomeSummary(summary) {
     $('#todayRateValue').text(`${percent}%`);
 
     if ($('#completedTodayValuePro').length) $('#completedTodayValuePro').text(completedToday);
+    if ($('#missedHabitsValuePro').length) $('#missedHabitsValuePro').text(missedHabitsValue);
     if ($('#todayHabitsValuePro').length) $('#todayHabitsValuePro').text(scheduledToday);
     if ($('#todayRateValuePro').length) $('#todayRateValuePro').text(`${percent}%`);
 }
@@ -80,8 +82,6 @@ function loadData() {
 
         renderTodayHabits(habits);
         startProHabitAutoRefresh(habits);
-        renderDailyChart(dailyStats);
-        renderStatisticsTable(habitBreakdown);
         $('.streak label').text(`${stats.current_streak || 0} days`);
 
         if (stats.completion_rate !== undefined) {
