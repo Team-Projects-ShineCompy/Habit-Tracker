@@ -1,23 +1,24 @@
-function populatePageCalendar() {
-    const calendar = new Date();
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+let currentCalendarDate = new Date();
 
-    $('#year').text(calendar.getFullYear());
-    $('#month').text(months[calendar.getMonth()]);
+function populatePageCalendar() {
+    currentCalendarDate = new Date();
+    $('#year').text(currentCalendarDate.getFullYear());
+    $('#month').text(currentCalendarDate.toLocaleString('en-US', { month: 'long' }));
+    loadStatisticsForMonth(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + 1);
 }
 
 $(document).ready(function () {
     $('#text_btn').click(function () {
-        const calendar = new Date();
-        calendar.setMonth(calendar.getMonth() + 1);
-        $('#year').text(calendar.getFullYear());
-        $('#month').text(calendar.toLocaleString('en-US', { month: 'long' }));
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+        $('#year').text(currentCalendarDate.getFullYear());
+        $('#month').text(currentCalendarDate.toLocaleString('en-US', { month: 'long' }));
+        loadStatisticsForMonth(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + 1);
     });
 
     $('#back_btn').click(function () {
-        const calendar = new Date();
-        calendar.setMonth(calendar.getMonth() - 1);
-        $('#year').text(calendar.getFullYear());
-        $('#month').text(calendar.toLocaleString('en-US', { month: 'long' }));
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+        $('#year').text(currentCalendarDate.getFullYear());
+        $('#month').text(currentCalendarDate.toLocaleString('en-US', { month: 'long' }));
+        loadStatisticsForMonth(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + 1);
     });
 });
