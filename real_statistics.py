@@ -10,6 +10,7 @@ from database import get_db, get_user_habits
 
 def is_scheduled(habit, check_date):
     """habit တစ်ခုက ရွေးထားတဲ့ check_date (date object) မှာ scheduled ရှိမရှိ ပြန်ပေး (True/False)."""
+    year = check_date.year
     month = check_date.month
     weekday = check_date.isoweekday()  # 1=Mon ... 7=Sun
     week_num = (check_date.day - 1) // 7 + 1
@@ -26,9 +27,11 @@ def is_scheduled(habit, check_date):
     rtype = habit.get('repeat_type', pattern.get('type', ''))
 
     if rtype == 'weekly':
+        years = pattern.get('years')
         months = pattern.get('months', list(range(1, 13)))
         weekdays = pattern.get('weekdays', list(range(1, 8)))
-        return (not months or month in months) and (not weekdays or weekday in weekdays)
+        year_matches = not years or year in years
+        return year_matches and (not months or month in months) and (not weekdays or weekday in weekdays)
 
     elif rtype == 'custom':
         dates = pattern.get('dates')
@@ -221,6 +224,84 @@ def get_per_habit_breakdown(user_id, days=30):
         result[h['habit_name']] = {
             "total_time_min": round(duration_min * completed_count, 1),
             "completion_rate": round((completed_count / scheduled_count) * 100, 1) if scheduled_count else 0
+        }
+
+    return result
+
+def get_daily_completion_rates_for_month(user_id, year, month):
+    """
+    Given calendar month (year, month) အတွက် ရက်တစ်ရက်ချင်းစီရဲ့ completion % ကို ပြန်ပေး.
+    Habit တစ်ခုမှ schedule မရှိတဲ့ရက်ကို skip လုပ်တယ်.
+    """
+    habits = get_user_habits(user_id)
+    if not habits:
+        return {}
+
+    logs_map = _get_logs_map(user_id, habits)
+
+    if month == 12:
+        next_month_first = date(year + 1, 1, 1)
+    else:
+        next_month_first = date(year, month + 1, 1)
+    days_in_month = (next_month_first - date(year, month, 1)).days
+
+    daily_rates = {}
+    for day in range(1, days_in_month + 1):
+        check_date = date(year, month, day)
+        date_str = check_date.isoformat()
+        scheduled_today = [h for h in habits if is_scheduled(h, check_date)]
+        if not scheduled_today:
+            continue
+
+        completed_count = sum(
+            1 for h in scheduled_today
+            if _is_completed(logs_map, h['id'], date_str)
+        )
+        daily_rates[date_str] = round((completed_count / len(scheduled_today)) * 100, 1)
+
+    return daily_rates
+
+
+def get_per_habit_breakdown_for_month(user_id, year, month):
+    """Given calendar month အတွက် habit တစ်ခုချင်းစီရဲ့ total_time_min + completion_rate."""
+    habits = get_user_habits(user_id)
+    if not habits:
+        return {}
+
+    logs_map = _get_logs_map(user_id, habits)
+
+    if month == 12:
+        next_month_first = date(year + 1, 1, 1)
+    else:
+        next_month_first = date(year, month + 1, 1)
+    days_in_month = (next_month_first - date(year, month, 1)).days
+
+    result = {}
+    for h in habits:
+        try:
+            duration_min = (
+                datetime.strptime(h['end_time'], "%H:%M") -
+                datetime.strptime(h['start_time'], "%H:%M")
+            ).total_seconds() / 60
+        except (ValueError, TypeError):
+            duration_min = 0
+
+        scheduled_count = 0
+        completed_count = 0
+
+        for day in range(1, days_in_month + 1):
+            check_date = date(year, month, day)
+            if is_scheduled(h, check_date):
+                scheduled_count += 1
+                if _is_completed(logs_map, h['id'], check_date.isoformat()):
+                    completed_count += 1
+
+        if scheduled_count == 0:
+            continue
+
+        result[h['habit_name']] = {
+            "total_time_min": round(duration_min * completed_count, 1),
+            "completion_rate": round((completed_count / scheduled_count) * 100, 1)
         }
 
     return result
