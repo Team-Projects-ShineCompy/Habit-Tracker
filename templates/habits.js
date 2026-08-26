@@ -14,11 +14,15 @@ function isHabitScheduledForDate(habit, dateObj) {
         }));
     }
 
+    const year = dateObj.getFullYear();
     const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
     const month = dateObj.getMonth() + 1;
+    const years = pattern.years;
     const months = pattern.months || Array.from({ length: 12 }, (_, index) => index + 1);
     const weekdays = pattern.weekdays || Array.from({ length: 7 }, (_, index) => index + 1);
-    return months.includes(month) && weekdays.includes(weekday);
+
+    const yearMatches = !years || !years.length || years.includes(year);
+    return yearMatches && months.includes(month) && weekdays.includes(weekday);
 }
 
 function isHabitCompletedOnDate(habit, dateISO) {
@@ -211,9 +215,37 @@ function renderTodayHabits(habits) {
         if (!scheduled.length) {
             proListEl.append('<li class="habit-empty"><div><span>No habits scheduled today.</span></div></li>');
         } else {
-            scheduled.forEach((habit) => {
-                const habitState = getProHabitState(habit, todayISO);
+            // -----------------------------------------------------------
+            // Step 1 + Step 2: state ကို အရင်တွက်ပြီး, priority group အလိုက်
+            // sort လုပ်မယ် — group တစ်ခုချင်းစီအတွင်းမှာ start_time
+            // chronological order ကို base sort အနေနဲ့ ဆက်သုံးမယ်.
+            //
+            // Priority 0 (Top)    : ready / pending / complete — active flow ထဲရှိနေ
+            // Priority 1 (Middle) : coming_soon / done
+            // Priority 2 (Bottom) : uncomplete — Case2 (ready မနှိပ်ခဲ့) နှင့်
+            //                       Case3 (complete မနှိပ်ခဲ့) နှစ်ခုစလုံး ဒီ state
+            //                       တစ်ခုတည်းကို share နေတယ်.
+            // -----------------------------------------------------------
+            const priorityOf = (state) => {
+                if (state === 'ready' || state === 'pending' || state === 'complete') return 0; // Top1
+                if (state === 'coming_soon') return 1;                                           // Top2
+                if (state === 'done') return 2;                                                  // Top3
+                return 3; // uncomplete                                                          // Top4
+            };
 
+            const habitsWithState = scheduled.map((habit) => ({
+                habit,
+                habitState: getProHabitState(habit, todayISO)
+            }));
+
+            habitsWithState.sort((a, b) => {
+                const priorityDiff = priorityOf(a.habitState.state) - priorityOf(b.habitState.state);
+                if (priorityDiff !== 0) return priorityDiff;
+                // Group တူတူထဲမှာ start_time (HH:MM string) အလိုက် chronological sort
+                return (a.habit.start_time || '00:00').localeCompare(b.habit.start_time || '00:00');
+            });
+
+            habitsWithState.forEach(({ habit, habitState }) => {
                 const row = $(
                     '<li class="habit-row">' +
                     '  <div>' +
@@ -323,6 +355,7 @@ function renderTodayHabits(habits) {
     }
 }
 
+
 function deleteHabitFromApi(habitId) {
     if (!window.confirm('Delete this habit?')) return;
 
@@ -339,17 +372,22 @@ function deleteHabitFromApi(habitId) {
     });
 }
 
-function buildWeeklyPatternFromForm(checkGroupSelector, monthGroupSelector) {
+function buildWeeklyPatternFromForm(checkGroupSelector, monthGroupSelector, yearSelector) {
     const months = $(monthGroupSelector + ' input[type="checkbox"]:checked').map(function () {
-        return monthLookup[this.id] || null;
+        const key = this.id.replace(/2$/, '');
+        return monthLookup[key] || null;
     }).get().filter(Boolean);
 
     const weekdays = $(checkGroupSelector + ' input[type="checkbox"]:checked').map(function () {
-        return weekdayLookup[this.id] || null;
+        const key = this.id.replace(/2$/, '');
+        return weekdayLookup[key] || null;
     }).get().filter(Boolean);
+
+    const year = Number($(yearSelector).val()) || new Date().getFullYear();
 
     return {
         type: 'weekly',
+        years: [year],
         months: months.length ? months : Array.from({ length: 12 }, (_, index) => index + 1),
         weekdays: weekdays.length ? weekdays : Array.from({ length: 7 }, (_, index) => index + 1)
     };
@@ -442,12 +480,13 @@ $(document).ready(function () {
             endSelector: '#pro_weekly_end_time',
             repeatType: 'weekly',
             patternBuilder: function () {
-                return buildWeeklyPatternFromForm('.pro_habit_page .m_b_l_week', '.pro_habit_page .m_b_l_months');
+                return buildWeeklyPatternFromForm('.pro_habit_page .m_b_l_week', '.pro_habit_page .m_b_l_months', '#pro_weekly_habit_year');
             },
             resetFields: function () {
                 $('#pro_weekly_habit_name').val('');
                 $('#pro_weekly_start_time').val('');
                 $('#pro_weekly_end_time').val('');
+                $('#pro_weekly_habit_year').val(new Date().getFullYear());
                 $('.pro_habit_page .m_b_l_months input[type="checkbox"]').prop('checked', false);
                 $('.pro_habit_page .m_b_l_week input[type="checkbox"]').prop('checked', false);
             }
