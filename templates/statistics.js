@@ -92,3 +92,45 @@ function renderDailyChart(dailyStats) {
 function renderStreak(streakValue) {
     $('.streak label').text(`${streakValue || 0} days`);
 }
+
+function loadStatisticsForMonth(year, month) {
+    $('#lists_checked_completed_missed').html('<li><p>Loading...</p></li>');
+    showChartLoading();
+
+    Promise.all([
+        fetch(`/api/statistics/daily?year=${year}&month=${month}`, { method: 'GET', credentials: 'include' }),
+        fetch(`/api/statistics/habits?year=${year}&month=${month}`, { method: 'GET', credentials: 'include' })
+    ]).then(async ([dailyRes, breakdownRes]) => {
+        if (dailyRes.status === 401 || breakdownRes.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+
+        const dailyStats = dailyRes.ok ? await dailyRes.json() : {};
+        const habitBreakdown = breakdownRes.ok ? await breakdownRes.json() : {};
+
+        renderDailyChart(dailyStats);
+        renderStatisticsTable(habitBreakdown);
+
+    }).catch(() => {
+        renderDailyChart({});
+        $('#lists_checked_completed_missed').html('<li><p>No API data available.</p></li>');
+    });
+}
+
+function showChartLoading() {
+    const canvas = document.getElementById('rate_data');
+    if (!canvas) return;
+    if (window.statisticsChartInstance) {
+        window.statisticsChartInstance.destroy();
+        window.statisticsChartInstance = null;
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#eff3f4';
+    ctx.textAlign = 'center';
+    ctx.fillText('Loading...', canvas.width / 2, canvas.height / 2);
+    ctx.restore();
+}
