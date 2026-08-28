@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login</title>
+    <link rel="stylesheet" href="t_p_2.4.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        .admin_login_box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .admin_login_box form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 320px;
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px dotted #2dcdf5;
+            background-color: rgba(1, 13, 23, 0.8);
+        }
+
+        .admin_login_box h2 {
+            color: #eff3f4;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .admin_login_box input {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #2dcdf5;
+            background: rgba(1, 13, 23, 0.6);
+            color: #eff3f4;
+        }
+
+        .admin_login_box button {
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            background-color: #2dcdf5;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .admin_login_box .error_msg {
+            color: #f45c5c;
+            text-align: center;
+            min-height: 18px;
+            font-size: .9em;
+        }
+    </style>
+</head>
+
+<body style="background: rgba(1,13,23,0.9);">
+    <div class="admin_login_box">
+        <form id="adminLoginForm">
+            <h2><i class="fa-solid fa-user-shield"></i> Admin Login</h2>
+            <input id="adminUsername" type="text" placeholder="Username" autocomplete="off">
+            <input id="adminPassword" type="password" placeholder="Password">
+            <div class="error_msg" id="adminLoginError"></div>
+            <button type="submit">Log In</button>
+        </form>
+    </div>
+
+    <script src="jquery.min.js"></script>
+    <link rel="stylesheet" href="/t_p_2.4.css">
+    <script src="/jquery.min.js"></script>
+    <script>
+        $('#adminLoginForm').on('submit', function (e) {
+            e.preventDefault();
+            const username = $('#adminUsername').val();
+            const password = $('#adminPassword').val();
+            $('#adminLoginError').text('');
+
+            fetch('/api/admin/login', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            }).then(async (response) => {
+                const body = await response.json();
+                if (!response.ok) {
+                    $('#adminLoginError').text(body.error || 'Login failed.');
+                    return;
+                }
+                window.location.href = '/admin';
+            }).catch(() => {
+                $('#adminLoginError').text('Unable to reach server.');
+            });
+        });
+    </script>
+</body>
+
+</html>
