@@ -1,4 +1,8 @@
 import os
+import secrets
+from dotenv import load_dotenv
+load_dotenv()
+
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -38,6 +42,19 @@ def login_required(f):
     return decorated_function
 
 
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('is_admin'):
+            return jsonify({"error": "Admin authorization required."}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 # ==========================================
 # PAGE ROUTING (HTML TEMPLATES)
 # ==========================================
@@ -56,6 +73,20 @@ def login_page():
 @app.route('/register')
 def register_page():
     return render_template('register.html')
+
+@app.route('/admin/login')
+def admin_login_page():
+    return render_template('admin_login.html')
+
+
+@app.route('/admin')
+def admin_page():
+    return render_template('admin.html')
+
+
+@app.route('/admin/user/<int:user_id>')
+def admin_user_detail_page(user_id):
+    return render_template('admin_user_detail.html', target_user_id=user_id)
     
 
 @app.route('/t_p_2.4.css')
@@ -68,7 +99,9 @@ ALLOWED_JS_FILES = {
                     'habits.js',
                     'statistics.js',
                     'main.js',
-                    'jquery.min.js'
+                    'jquery.min.js',
+                    'admin.js',
+                    'admin_detail.js'
                     }
 
 @app.route('/<path:filename>.js')
@@ -267,6 +300,117 @@ def api_habit_breakdown():
     else:
         data = real_statistics.get_per_habit_breakdown(session['user_id'])
     return jsonify(data), 200
+
+# ==========================================
+# ADMIN — AUTH
+# ==========================================
+
+@app.route('/api/admin/login', methods=['POST'])
+def api_admin_login():
+    data = request.get_json() or {}
+    username = data.get('username', '')
+    password = data.get('password', '')
+
+    if not ADMIN_USERNAME or not ADMIN_PASSWORD:
+        return jsonify({"error": "Admin login is not configured on the server."}), 500
+
+    valid = secrets.compare_digest(username, ADMIN_USERNAME) and secrets.compare_digest(password, ADMIN_PASSWORD)
+    if not valid:
+        return jsonify({"error": "Invalid admin credentials"}), 401
+
+    session.clear()  # regular user session ရှိရင် clear (admin/user session ရောမနေအောင်)
+    session['is_admin'] = True
+    return jsonify({"message": "Admin login successful"}), 200
+
+
+@app.route('/api/admin/logout', methods=['POST'])
+def api_admin_logout():
+    session.clear()
+    return jsonify({"message": "Logged out"}), 200
+
+
+@app.route('/api/admin/me', methods=['GET'])
+@admin_required
+def api_admin_me():
+    return jsonify({"is_admin": True}), 200
+
+
+# ==========================================
+# ADMIN — DATA (READ-ONLY, except delete)
+# ==========================================
+
+@app.route('/api/admin/users', methods=['GET'])
+@admin_required
+def api_admin_users():
+    users = database.get_all_users()
+    return jsonify({"users": users}), 200
+
+
+@app.route('/api/admin/user/<int:user_id>', methods=['GET'])
+@admin_required
+def api_admin_user_info(user_id):
+    user = database.get_user_by_id(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify({"user": user}), 200
+
+
+@app.route('/api/admin/user/<int:user_id>/habits', methods=['GET'])
+@admin_required
+def api_admin_user_habits(user_id):
+    habits = database.get_user_habits(user_id)
+    return jsonify({"habits": habits}), 200
+
+
+@app.route('/api/admin/user/<int:user_id>/logs', methods=['GET'])
+@admin_required
+def api_admin_user_logs(user_id):
+    logs = database.get_user_habit_logs(user_id)
+    return jsonify({"logs": logs}), 200
+
+
+@app.route('/api/admin/user/<int:user_id>/statistics', methods=['GET'])
+@admin_required
+def api_admin_user_statistics(user_id):
+    stats = real_statistics.get_user_statistics(user_id)
+    return jsonify(stats), 200
+
+
+@app.route('/api/admin/user/<int:user_id>/statistics/daily', methods=['GET'])
+@admin_required
+def api_admin_user_daily(user_id):
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    if year and month:
+        data = real_statistics.get_daily_completion_rates_for_month(user_id, year, month)
+    else:
+        data = real_statistics.get_daily_completion_rates(user_id)
+    return jsonify(data), 200
+
+
+@app.route('/api/admin/user/<int:user_id>/statistics/habits', methods=['GET'])
+@admin_required
+def api_admin_user_habit_breakdown(user_id):
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    if year and month:
+        data = real_statistics.get_per_habit_breakdown_for_month(user_id, year, month)
+    else:
+        data = real_statistics.get_per_habit_breakdown(user_id)
+    return jsonify(data), 200
+
+
+# ==========================================
+# ADMIN — DELETE USER (only allowed mutation)
+# ==========================================
+
+@app.route('/api/admin/user/<int:user_id>', methods=['DELETE'])
+@admin_required
+def api_admin_delete_user(user_id):
+    success = database.delete_user(user_id)
+    if success:
+        return jsonify({"message": "User deleted"}), 200
+    return jsonify({"error": "Failed to delete user"}), 400
 
 database.init_db()
 
