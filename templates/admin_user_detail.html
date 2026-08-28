@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — User Detail</title>
+    <link rel="stylesheet" href="t_p_2.4.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <script>
+        window.ADMIN_TARGET_USER_ID = {{ target_user_id }};
+    </script>
+    <style>
+        .admin_wrap {
+            padding: 25px;
+            color: #eff3f4;
+        }
+
+        .admin_back {
+            background: none;
+            border: 1px solid #2dcdf5;
+            color: #2dcdf5;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        #adminUserEmail {
+            color: #2dcdf5;
+        }
+
+        .admin_today_box {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .admin_today_box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .admin_today_box ul li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border-radius: 10px;
+            background-color: rgba(1, 13, 23, 0.4);
+            box-shadow: 0px 1px 10px rgba(16, 17, 19, 0.4);
+        }
+
+        .status_tag {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: .85em;
+        }
+
+        .status_done {
+            background-color: rgba(45, 205, 100, 0.3);
+            color: #4ef07a;
+        }
+
+        .status_pending,
+        .status_ready,
+        .status_coming_soon {
+            background-color: rgba(217, 214, 34, 0.3);
+            color: #e7e04a;
+        }
+
+        .status_uncomplete {
+            background-color: rgba(237, 69, 69, 0.3);
+            color: #f45c5c;
+        }
+    </style>
+</head>
+
+<body style="background: rgba(1,13,23,0.9); display:block; height: auto; min-height: 100vh;">
+    <div class="admin_wrap">
+        <button class="admin_back" onclick="window.location.href='/admin'"><i class="fa-solid fa-arrow-left"></i> Back
+            to users</button>
+        <h2><i class="fa-solid fa-user"></i> <span id="adminUserEmail">Loading...</span></h2>
+
+        <div class="admin_today_box">
+            <h3>Today's Habits</h3>
+            <ul id="adminTodayHabitsList">
+                <li>Loading...</li>
+            </ul>
+        </div>
+
+        <div class="grab_and_streak">
+            <div class="grab"><canvas id="rate_data"></canvas></div>
+            <div class="streak">
+                <h4>Streak 🔥</h4><br><br>
+                <label id="adminStreakLabel">0 days</label>
+            </div>
+        </div>
+
+        <div class="lists_completed" style="margin-top:15px;">
+            <div class="calendar_header">
+                <button id="back_btn">
+                    < </button>
+                        <h3><span id="month"></span> <span id="year"></span></h3>
+                        <button id="text_btn"> > </button>
+            </div>
+            <br>
+            <div class="lists_data_menu">
+                <label>Habit Name</label><label>Total Time (min)</label><label>Completion Rate (%)</label>
+            </div>
+            <br>
+            <div class="lists_and_checked">
+                <ul id="lists_checked_completed_missed"></ul>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="/t_p_2.4.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <script src="/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/admin_detail.js"></script>
+</body>
+
+</html>
