@@ -406,3 +406,62 @@ def get_user_habit_logs(user_id):
         cursor.close()
         conn.close()
 
+def get_all_users():
+    """Fetch all users (id, email, created_at only — never password_hash)."""
+    conn, db_type = get_db()
+    cursor = conn.cursor()
+    try:
+        if db_type == "postgres":
+            cursor.execute('SELECT id, email, created_at FROM "user" ORDER BY created_at DESC;')
+            rows = cursor.fetchall()
+        else:
+            cursor.execute('SELECT id, email, created_at FROM "user" ORDER BY created_at DESC;')
+            rows = [dict(row) for row in cursor.fetchall()]
+        return rows
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_user_by_id(user_id):
+    """Fetch a single user's public info by id (never password_hash)."""
+    conn, db_type = get_db()
+    cursor = conn.cursor()
+    try:
+        if db_type == "postgres":
+            cursor.execute('SELECT id, email, created_at FROM "user" WHERE id = %s;', (user_id,))
+            row = cursor.fetchone()
+        else:
+            cursor.execute('SELECT id, email, created_at FROM "user" WHERE id = ?;', (user_id,))
+            row = cursor.fetchone()
+            if row:
+                row = dict(row)
+        return row
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def delete_user(user_id):
+    """Delete a user and manually cascade-delete their habits + habit_logs
+    (explicit cascade, not relying on SQLite FK pragma being enabled)."""
+    conn, db_type = get_db()
+    cursor = conn.cursor()
+    try:
+        if db_type == "postgres":
+            cursor.execute("DELETE FROM habit_log WHERE habit_id IN (SELECT id FROM habit WHERE user_id = %s);", (user_id,))
+            cursor.execute("DELETE FROM habit WHERE user_id = %s;", (user_id,))
+            cursor.execute('DELETE FROM "user" WHERE id = %s;', (user_id,))
+        else:
+            cursor.execute("DELETE FROM habit_log WHERE habit_id IN (SELECT id FROM habit WHERE user_id = ?);", (user_id,))
+            cursor.execute("DELETE FROM habit WHERE user_id = ?;", (user_id,))
+            cursor.execute('DELETE FROM "user" WHERE id = ?;', (user_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"[DB Error] delete_user: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
