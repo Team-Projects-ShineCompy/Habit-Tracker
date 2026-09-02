@@ -1,5 +1,9 @@
 import os
 import secrets
+import re
+import smtplib
+from datetime import datetime, timedelta
+from email.message import EmailMessage
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -16,7 +20,7 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 # SECRET_KEY must be set as an environment variable. No fallback allowed.
 # NOTE: In multi-worker deployments, this random per-process fallback will invalidate sessions
 # across workers and is therefore only acceptable in local dev/testing, never in production.
-_secret_key = os.environ.get("SECRET_KEY")
+_secret_key = os.environ.get("SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY")
 if not _secret_key:
     import warnings
     warnings.warn(
@@ -44,6 +48,105 @@ def login_required(f):
 
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+OTP_TTL = timedelta(minutes=5)
+OTP_RESEND_COOLDOWN = timedelta(seconds=60)
+OTP_MAX_ATTEMPTS = 5
+
+
+def normalize_email(value):
+    email = (value or '').strip().lower()
+    if len(email) > 254 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        return None
+    return email
+
+
+def validate_password(password):
+    return isinstance(password, str) and len(password) >= 8
+
+
+def generate_otp():
+    return f"{secrets.randbelow(1000000):06d}"
+
+
+def send_otp_email(email, otp):
+    host = os.environ.get("SMTP_HOST")
+    user = os.environ.get("SMTP_USER")
+    password = os.environ.get("SMTP_PASSWORD")
+    sender = os.environ.get("SMTP_FROM") or user
+    if not host or not user or not password or not sender:
+        raise RuntimeError("SMTP email configuration is incomplete.")
+
+    message = EmailMessage()
+    message["Subject"] = "Your Verification Code"
+    message["From"] = sender
+    message["To"] = email
+    message.set_content(
+        f"Your verification code is:\n\n{otp}\n\nThis code expires in 5 minutes."
+    )
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, timeout=15) as smtp:
+            smtp.login(user, password)
+            smtp.send_message(message)
+    else:
+        with smtplib.SMTP(host, port, timeout=15) as smtp:
+            smtp.starttls()
+            smtp.login(user, password)
+            smtp.send_message(message)
+
+
+def request_otp(email, purpose):
+    now = datetime.utcnow()
+    current = database.get_latest_otp(email, purpose)
+    if current:
+        sent_at = current['last_sent_at']
+        if isinstance(sent_at, str):
+            sent_at = datetime.fromisoformat(sent_at)
+        remaining = int((OTP_RESEND_COOLDOWN - (now - sent_at)).total_seconds())
+        if remaining > 0:
+            return False, f"Please wait before requesting another OTP. Try again in {remaining} seconds."
+
+    otp = generate_otp()
+    database.create_otp(
+        email, generate_password_hash(otp), purpose,
+        now + OTP_TTL, now
+    )
+    try:
+        send_otp_email(email, otp)
+    except Exception:
+        # Do not leave a code active when delivery failed.
+        latest = database.get_latest_otp(email, purpose)
+        if latest:
+            database.mark_otp_verified(latest['id'])
+        raise
+    return True, None
+
+
+def verify_otp(email, purpose, supplied_otp):
+    record = database.get_latest_otp(email, purpose)
+    if not record:
+        return False, "Verification code expired or invalid."
+    expires_at = record['expires_at']
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if datetime.utcnow() >= expires_at:
+        database.mark_otp_verified(record['id'])
+        return False, "Verification code expired."
+    if record['attempts'] >= OTP_MAX_ATTEMPTS:
+        database.mark_otp_verified(record['id'])
+        return False, "Too many incorrect attempts. Please request a new code."
+    if not isinstance(supplied_otp, str) or not re.fullmatch(r"\d{6}", supplied_otp):
+        attempts = record['attempts'] + 1
+        database.update_otp_attempts(record['id'], attempts, attempts >= OTP_MAX_ATTEMPTS)
+        return False, "Invalid verification code."
+    if not check_password_hash(record['otp_hash'], supplied_otp):
+        attempts = record['attempts'] + 1
+        database.update_otp_attempts(record['id'], attempts, attempts >= OTP_MAX_ATTEMPTS)
+        if attempts >= OTP_MAX_ATTEMPTS:
+            return False, "Too many incorrect attempts. Please request a new code."
+        return False, "Invalid verification code."
+    database.mark_otp_verified(record['id'])
+    return True, None
 
 
 def admin_required(f):
@@ -73,6 +176,11 @@ def login_page():
 @app.route('/register')
 def register_page():
     return render_template('register.html')
+
+
+@app.route('/forgot-password')
+def forgot_password_page():
+    return render_template('forgot_password.html')
 
 @app.route('/admin/login')
 def admin_login_page():
@@ -119,24 +227,95 @@ def serve_js(filename):
 # 1. User Registration
 @app.route('/api/register', methods=['POST'])
 def api_register():
+    return jsonify({"error": "Email verification is required before creating an account."}), 410
+
+
+@app.route('/api/auth/signup/send-otp', methods=['POST'])
+def signup_send_otp():
+    email = normalize_email((request.get_json() or {}).get('email'))
+    if not email:
+        return jsonify({"error": "Please enter a valid email address."}), 400
+    if database.get_user_by_email(email):
+        return jsonify({"error": "User with this email already exists."}), 400
+    try:
+        allowed, error = request_otp(email, 'signup')
+        if not allowed:
+            return jsonify({"error": error}), 429
+        return jsonify({"message": "Verification code sent."}), 200
+    except Exception:
+        return jsonify({"error": "Unable to send verification code."}), 500
+
+
+@app.route('/api/auth/signup/verify-otp', methods=['POST'])
+def signup_verify_otp():
     data = request.get_json() or {}
-    email = data.get('email', '').strip().lower()
-    password = data.get('password', '')
+    email = normalize_email(data.get('email'))
+    valid, error = verify_otp(email, 'signup', data.get('otp')) if email else (False, "Invalid verification code.")
+    if not valid:
+        return jsonify({"error": error}), 400
+    session['signup_verified_email'] = email
+    return jsonify({"message": "Email verified successfully."}), 200
 
-    if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
 
-    existing_user = database.get_user_by_email(email)
-    if existing_user:
-        return jsonify({"error": "User with this email already exists"}), 400
+@app.route('/api/auth/signup/create-password', methods=['POST'])
+def signup_create_password():
+    email = session.get('signup_verified_email')
+    password = (request.get_json() or {}).get('password', '')
+    if not email:
+        return jsonify({"error": "Please verify your email first."}), 400
+    if not validate_password(password):
+        return jsonify({"error": "Password must be at least 8 characters."}), 400
+    if database.get_user_by_email(email):
+        session.pop('signup_verified_email', None)
+        return jsonify({"error": "User with this email already exists."}), 400
+    user_id = database.create_user(email, generate_password_hash(password))
+    if not user_id:
+        return jsonify({"error": "Failed to create account."}), 500
+    session.pop('signup_verified_email', None)
+    session['user_id'] = user_id
+    session['user_email'] = email
+    return jsonify({"message": "Account created successfully.", "user_id": user_id}), 201
 
-    password_hash = generate_password_hash(password)
-    user_id = database.create_user(email, password_hash)
 
-    if user_id:
-        return jsonify({"message": "Register successful", "user_id": user_id}), 201
-    else:
-        return jsonify({"error": "Failed to create account"}), 500
+@app.route('/api/auth/reset/send-otp', methods=['POST'])
+def reset_send_otp():
+    email = normalize_email((request.get_json() or {}).get('email'))
+    if not email:
+        return jsonify({"message": "If the account exists, a verification code has been sent."}), 200
+    try:
+        if database.get_user_by_email(email):
+            allowed, error = request_otp(email, 'password_reset')
+            if not allowed:
+                return jsonify({"error": error}), 429
+    except Exception:
+        return jsonify({"error": "Unable to send verification code."}), 500
+    return jsonify({"message": "If the account exists, a verification code has been sent."}), 200
+
+
+@app.route('/api/auth/reset/verify-otp', methods=['POST'])
+def reset_verify_otp():
+    data = request.get_json() or {}
+    email = normalize_email(data.get('email'))
+    valid, error = verify_otp(email, 'password_reset', data.get('otp')) if email else (False, "Invalid verification code.")
+    if not valid:
+        return jsonify({"error": error}), 400
+    session['reset_verified_email'] = email
+    return jsonify({"message": "Email verified successfully."}), 200
+
+
+@app.route('/api/auth/reset/new-password', methods=['POST'])
+def reset_new_password():
+    email = session.get('reset_verified_email')
+    password = (request.get_json() or {}).get('password', '')
+    if not email:
+        return jsonify({"error": "Please verify your email first."}), 400
+    if not validate_password(password):
+        return jsonify({"error": "Password must be at least 8 characters."}), 400
+    user = database.get_user_by_email(email)
+    if not user or not database.update_user_password(user['id'], generate_password_hash(password)):
+        return jsonify({"error": "Unable to update password."}), 400
+    session.pop('reset_verified_email', None)
+    return jsonify({"message": "Password updated successfully."}), 200
 
 
 # 2. User Login
@@ -153,7 +332,7 @@ def api_login():
     if not user or not check_password_hash(user['password_hash'], password):
         return jsonify({"error": "Invalid email or password"}), 401
 
-    # Store user identity directly in encrypted Flask Backend Session
+    session.clear()
     session['user_id'] = user['id']
     session['user_email'] = user['email']
 
