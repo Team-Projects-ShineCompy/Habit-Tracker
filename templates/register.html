@@ -26,15 +26,26 @@
                     <label for="email">Email Address</label>
                     <input type="email" id="email" class="form-control" placeholder="example@gmail.com" required>
                 </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+                <div id="otpStep" class="remove">
+                    <div class="form-group">
+                        <label for="otp">Verification Code</label>
+                        <input type="text" id="otp" class="form-control" inputmode="numeric" maxlength="6"
+                            autocomplete="one-time-code">
+                    </div>
+                    <button type="button" id="verifyOtp" class="btn btn-primary">Verify Email</button>
                 </div>
-                <div class="form-group">
-                    <label for="confirmPassword">Confirm Password</label>
-                    <input type="password" id="confirmPassword" class="form-control" placeholder="••••••••" required>
+                <div id="passwordStep" class="remove">
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" class="form-control" placeholder="At least 8 characters">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword" class="form-control"
+                            placeholder="Repeat your password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Account</button>
                 </div>
-                <button type="submit" class="btn btn-primary">Create Account</button>
             </form>
 
             <div class="auth-footer">
@@ -48,27 +59,24 @@
         document.addEventListener("DOMContentLoaded", () => {
             Auth.guardGuestPage();
 
-            document.getElementById("registerForm").addEventListener("submit", async (event) => {
+            const form = document.getElementById("registerForm");
+            const emailInput = document.getElementById("email");
+            const errorMessage = document.getElementById("errorMessage");
+            form.addEventListener("submit", async (event) => {
                 event.preventDefault();
-
-                const email = document.getElementById("email").value.trim();
+                const email = emailInput.value.trim();
                 const password = document.getElementById("password").value;
                 const confirmPassword = document.getElementById("confirmPassword").value;
-                const errorMessage = document.getElementById("errorMessage");
-
-                if (!email || !password || !confirmPassword) {
-                    errorMessage.textContent = "Please fill in all fields.";
+                if (password.length < 8) {
+                    errorMessage.textContent = "Password must be at least 8 characters.";
                     return;
                 }
-
                 if (password !== confirmPassword) {
                     errorMessage.textContent = "Passwords do not match.";
                     return;
                 }
-
                 try {
-                    errorMessage.textContent = "";
-                    const response = await fetch("/api/register", {
+                    const response = await fetch("/api/auth/signup/create-password", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ email, password })
@@ -77,7 +85,7 @@
                     const data = await response.json();
 
                     if (response.ok) {
-                        window.location.href = "/login";
+                        window.location.href = "/";
                         return;
                     }
 
@@ -86,6 +94,24 @@
                     console.error("Register error:", error);
                     errorMessage.textContent = "Failed to connect to the server.";
                 }
+            });
+
+            document.getElementById("email").addEventListener("change", () => {
+                document.getElementById("otpStep").classList.add("remove");
+                document.getElementById("passwordStep").classList.add("remove");
+            });
+            document.getElementById("email").insertAdjacentHTML("afterend", '<button type="button" id="sendOtp" class="btn btn-secondary">Send Verification Code</button>');
+            document.getElementById("sendOtp").addEventListener("click", async () => {
+                const response = await fetch("/api/auth/signup/send-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: emailInput.value.trim() }) });
+                const data = await response.json();
+                errorMessage.textContent = data.error || data.message || "";
+                if (response.ok) document.getElementById("otpStep").classList.remove("remove");
+            });
+            document.getElementById("verifyOtp").addEventListener("click", async () => {
+                const response = await fetch("/api/auth/signup/verify-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: emailInput.value.trim(), otp: document.getElementById("otp").value.trim() }) });
+                const data = await response.json();
+                errorMessage.textContent = data.error || data.message || "";
+                if (response.ok) { document.getElementById("passwordStep").classList.remove("remove"); document.getElementById("otpStep").classList.add("remove"); }
             });
         });
     </script>
