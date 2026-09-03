@@ -3,3 +3,4 @@ psycopg2-binary
 Werkzeug==3.0.3
 gunicorn
 python-dotenv
+requests
