@@ -113,7 +113,10 @@ def request_otp(email, purpose):
     )
     try:
         send_otp_email(email, otp)
-    except Exception:
+    except Exception as e:
+        import traceback
+        print(f"[OTP EMAIL ERROR] {type(e).__name__}: {e}")
+        traceback.print_exc()
         # Do not leave a code active when delivery failed.
         latest = database.get_latest_otp(email, purpose)
         if latest:
