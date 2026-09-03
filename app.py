@@ -70,20 +70,26 @@ def generate_otp():
 
 import requests
 
+import requests
+
 def send_otp_email(email, otp):
-    api_key = os.environ.get("RESEND_API_KEY")
-    sender = os.environ.get("EMAIL_FROM")  # e.g. "onboarding@resend.dev" or your verified domain
+    api_key = os.environ.get("BREVO_API_KEY")
+    sender = os.environ.get("EMAIL_FROM")  # verify ထားတဲ့ gmail address
     if not api_key or not sender:
         raise RuntimeError("Email API configuration is incomplete.")
 
     response = requests.post(
-        "https://api.resend.com/emails",
-        headers={"Authorization": f"Bearer {api_key}"},
+        "https://api.brevo.com/v3/smtp/email",
+        headers={
+            "api-key": api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
         json={
-            "from": sender,
-            "to": [email],
+            "sender": {"email": sender},
+            "to": [{"email": email}],
             "subject": "Your Verification Code",
-            "text": f"Your verification code is:\n\n{otp}\n\nThis code expires in 5 minutes."
+            "textContent": f"Your verification code is:\n\n{otp}\n\nThis code expires in 5 minutes."
         },
         timeout=15
     )
