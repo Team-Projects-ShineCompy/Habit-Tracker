@@ -68,31 +68,27 @@ def generate_otp():
     return f"{secrets.randbelow(1000000):06d}"
 
 
-def send_otp_email(email, otp):
-    host = os.environ.get("SMTP_HOST")
-    user = os.environ.get("SMTP_USER")
-    password = os.environ.get("SMTP_PASSWORD")
-    sender = os.environ.get("SMTP_FROM") or user
-    if not host or not user or not password or not sender:
-        raise RuntimeError("SMTP email configuration is incomplete.")
+import requests
 
-    message = EmailMessage()
-    message["Subject"] = "Your Verification Code"
-    message["From"] = sender
-    message["To"] = email
-    message.set_content(
-        f"Your verification code is:\n\n{otp}\n\nThis code expires in 5 minutes."
+def send_otp_email(email, otp):
+    api_key = os.environ.get("RESEND_API_KEY")
+    sender = os.environ.get("EMAIL_FROM")  # e.g. "onboarding@resend.dev" or your verified domain
+    if not api_key or not sender:
+        raise RuntimeError("Email API configuration is incomplete.")
+
+    response = requests.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {api_key}"},
+        json={
+            "from": sender,
+            "to": [email],
+            "subject": "Your Verification Code",
+            "text": f"Your verification code is:\n\n{otp}\n\nThis code expires in 5 minutes."
+        },
+        timeout=15
     )
-    port = int(os.environ.get("SMTP_PORT", "587"))
-    if port == 465:
-        with smtplib.SMTP_SSL(host, port, timeout=15) as smtp:
-            smtp.login(user, password)
-            smtp.send_message(message)
-    else:
-        with smtplib.SMTP(host, port, timeout=15) as smtp:
-            smtp.starttls()
-            smtp.login(user, password)
-            smtp.send_message(message)
+    if response.status_code >= 400:
+        raise RuntimeError(f"Email API error: {response.status_code} {response.text}")
 
 
 def request_otp(email, purpose):
