@@ -1,15 +1,12 @@
 import os
-import secrets
 import re
-import smtplib
-from datetime import datetime, timedelta
-from email.message import EmailMessage
+import secrets
 from dotenv import load_dotenv
 load_dotenv()
 
 from functools import wraps
-from flask import Flask, render_template, request, jsonify, session, send_file
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, redirect, render_template, request, jsonify, session, send_file
+from werkzeug.security import check_password_hash
 
 import database
 import real_statistics
@@ -48,9 +45,8 @@ def login_required(f):
 
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
-OTP_TTL = timedelta(minutes=5)
-OTP_RESEND_COOLDOWN = timedelta(seconds=60)
-OTP_MAX_ATTEMPTS = 5
+AUTH_SERVICE_SIGNUP_URL = "https://auth-service-kaef.onrender.com/signup"
+AUTH_SERVICE_FORGOT_PASSWORD_URL = "https://auth-service-kaef.onrender.com/forgot-password"
 
 
 def normalize_email(value):
@@ -58,100 +54,6 @@ def normalize_email(value):
     if len(email) > 254 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
         return None
     return email
-
-
-def validate_password(password):
-    return isinstance(password, str) and len(password) >= 8
-
-
-def generate_otp():
-    return f"{secrets.randbelow(1000000):06d}"
-
-
-import requests
-
-import requests
-
-def send_otp_email(email, otp):
-    api_key = os.environ.get("BREVO_API_KEY")
-    sender = os.environ.get("EMAIL_FROM")  # verify ထားတဲ့ gmail address
-    if not api_key or not sender:
-        raise RuntimeError("Email API configuration is incomplete.")
-
-    response = requests.post(
-        "https://api.brevo.com/v3/smtp/email",
-        headers={
-            "api-key": api_key,
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        },
-        json={
-            "sender": {"email": sender},
-            "to": [{"email": email}],
-            "subject": "Your Verification Code",
-            "textContent": f"Your verification code is:\n\n{otp}\n\nThis code expires in 5 minutes."
-        },
-        timeout=15
-    )
-    if response.status_code >= 400:
-        raise RuntimeError(f"Email API error: {response.status_code} {response.text}")
-
-
-def request_otp(email, purpose):
-    now = datetime.utcnow()
-    current = database.get_latest_otp(email, purpose)
-    if current:
-        sent_at = current['last_sent_at']
-        if isinstance(sent_at, str):
-            sent_at = datetime.fromisoformat(sent_at)
-        remaining = int((OTP_RESEND_COOLDOWN - (now - sent_at)).total_seconds())
-        if remaining > 0:
-            return False, f"Please wait before requesting another OTP. Try again in {remaining} seconds."
-
-    otp = generate_otp()
-    database.create_otp(
-        email, generate_password_hash(otp), purpose,
-        now + OTP_TTL, now
-    )
-    try:
-        send_otp_email(email, otp)
-    except Exception as e:
-        import traceback
-        print(f"[OTP EMAIL ERROR] {type(e).__name__}: {e}")
-        traceback.print_exc()
-        # Do not leave a code active when delivery failed.
-        latest = database.get_latest_otp(email, purpose)
-        if latest:
-            database.mark_otp_verified(latest['id'])
-        raise
-    return True, None
-
-
-def verify_otp(email, purpose, supplied_otp):
-    record = database.get_latest_otp(email, purpose)
-    if not record:
-        return False, "Verification code expired or invalid."
-    expires_at = record['expires_at']
-    if isinstance(expires_at, str):
-        expires_at = datetime.fromisoformat(expires_at)
-    if datetime.utcnow() >= expires_at:
-        database.mark_otp_verified(record['id'])
-        return False, "Verification code expired."
-    if record['attempts'] >= OTP_MAX_ATTEMPTS:
-        database.mark_otp_verified(record['id'])
-        return False, "Too many incorrect attempts. Please request a new code."
-    if not isinstance(supplied_otp, str) or not re.fullmatch(r"\d{6}", supplied_otp):
-        attempts = record['attempts'] + 1
-        database.update_otp_attempts(record['id'], attempts, attempts >= OTP_MAX_ATTEMPTS)
-        return False, "Invalid verification code."
-    if not check_password_hash(record['otp_hash'], supplied_otp):
-        attempts = record['attempts'] + 1
-        database.update_otp_attempts(record['id'], attempts, attempts >= OTP_MAX_ATTEMPTS)
-        if attempts >= OTP_MAX_ATTEMPTS:
-            return False, "Too many incorrect attempts. Please request a new code."
-        return False, "Invalid verification code."
-    database.mark_otp_verified(record['id'])
-    return True, None
 
 
 def admin_required(f):
@@ -180,12 +82,12 @@ def login_page():
 
 @app.route('/register')
 def register_page():
-    return render_template('register.html')
+    return redirect(AUTH_SERVICE_SIGNUP_URL)
 
 
 @app.route('/forgot-password')
 def forgot_password_page():
-    return render_template('forgot_password.html')
+    return redirect(AUTH_SERVICE_FORGOT_PASSWORD_URL)
 
 @app.route('/admin/login')
 def admin_login_page():
@@ -229,113 +131,20 @@ def serve_js(filename):
 # REST API ENDPOINTS
 # ==========================================
 
-# 1. User Registration
-@app.route('/api/register', methods=['POST'])
-def api_register():
-    return jsonify({"error": "Email verification is required before creating an account."}), 410
-
-
-@app.route('/api/auth/signup/send-otp', methods=['POST'])
-def signup_send_otp():
-    email = normalize_email((request.get_json() or {}).get('email'))
-    if not email:
-        return jsonify({"error": "Please enter a valid email address."}), 400
-    if database.get_user_by_email(email):
-        return jsonify({"error": "User with this email already exists."}), 400
-    try:
-        allowed, error = request_otp(email, 'signup')
-        if not allowed:
-            return jsonify({"error": error}), 429
-        return jsonify({"message": "Verification code sent."}), 200
-    except Exception:
-        return jsonify({"error": "Unable to send verification code."}), 500
-
-
-@app.route('/api/auth/signup/verify-otp', methods=['POST'])
-def signup_verify_otp():
-    data = request.get_json() or {}
-    email = normalize_email(data.get('email'))
-    valid, error = verify_otp(email, 'signup', data.get('otp')) if email else (False, "Invalid verification code.")
-    if not valid:
-        return jsonify({"error": error}), 400
-    session['signup_verified_email'] = email
-    return jsonify({"message": "Email verified successfully."}), 200
-
-
-@app.route('/api/auth/signup/create-password', methods=['POST'])
-def signup_create_password():
-    email = session.get('signup_verified_email')
-    password = (request.get_json() or {}).get('password', '')
-    if not email:
-        return jsonify({"error": "Please verify your email first."}), 400
-    if not validate_password(password):
-        return jsonify({"error": "Password must be at least 8 characters."}), 400
-    if database.get_user_by_email(email):
-        session.pop('signup_verified_email', None)
-        return jsonify({"error": "User with this email already exists."}), 400
-    user_id = database.create_user(email, generate_password_hash(password))
-    if not user_id:
-        return jsonify({"error": "Failed to create account."}), 500
-    session.pop('signup_verified_email', None)
-    session['user_id'] = user_id
-    session['user_email'] = email
-    return jsonify({"message": "Account created successfully.", "user_id": user_id}), 201
-
-
-@app.route('/api/auth/reset/send-otp', methods=['POST'])
-def reset_send_otp():
-    email = normalize_email((request.get_json() or {}).get('email'))
-    if not email:
-        return jsonify({"message": "If the account exists, a verification code has been sent."}), 200
-    try:
-        if database.get_user_by_email(email):
-            allowed, error = request_otp(email, 'password_reset')
-            if not allowed:
-                return jsonify({"error": error}), 429
-    except Exception:
-        return jsonify({"error": "Unable to send verification code."}), 500
-    return jsonify({"message": "If the account exists, a verification code has been sent."}), 200
-
-
-@app.route('/api/auth/reset/verify-otp', methods=['POST'])
-def reset_verify_otp():
-    data = request.get_json() or {}
-    email = normalize_email(data.get('email'))
-    valid, error = verify_otp(email, 'password_reset', data.get('otp')) if email else (False, "Invalid verification code.")
-    if not valid:
-        return jsonify({"error": error}), 400
-    session['reset_verified_email'] = email
-    return jsonify({"message": "Email verified successfully."}), 200
-
-
-@app.route('/api/auth/reset/new-password', methods=['POST'])
-def reset_new_password():
-    email = session.get('reset_verified_email')
-    password = (request.get_json() or {}).get('password', '')
-    if not email:
-        return jsonify({"error": "Please verify your email first."}), 400
-    if not validate_password(password):
-        return jsonify({"error": "Password must be at least 8 characters."}), 400
-    user = database.get_user_by_email(email)
-    if not user or not database.update_user_password(user['id'], generate_password_hash(password)):
-        return jsonify({"error": "Unable to update password."}), 400
-    session.pop('reset_verified_email', None)
-    return jsonify({"message": "Password updated successfully."}), 200
-
-
-# 2. User Login
+# 1. User Login
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.get_json() or {}
-    email = data.get('email', '').strip().lower()
+    email = normalize_email(data.get('email'))
     password = data.get('password', '')
 
     if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
+        return jsonify({"error": "Invalid email or password."}), 401
 
     user = database.get_user_by_email(email)
-    if not user or not check_password_hash(user['password_hash'], password):
-        return jsonify({"error": "Invalid email or password"}), 401
+    if (not user or not user.get('is_verified') or
+            not check_password_hash(user['password_hash'], password)):
+        return jsonify({"error": "Invalid email or password."}), 401
 
     session.clear()
     session['user_id'] = user['id']
@@ -583,18 +392,6 @@ def api_admin_user_habit_breakdown(user_id):
         data = real_statistics.get_per_habit_breakdown(user_id)
     return jsonify(data), 200
 
-
-# ==========================================
-# ADMIN — DELETE USER (only allowed mutation)
-# ==========================================
-
-@app.route('/api/admin/user/<int:user_id>', methods=['DELETE'])
-@admin_required
-def api_admin_delete_user(user_id):
-    success = database.delete_user(user_id)
-    if success:
-        return jsonify({"message": "User deleted"}), 200
-    return jsonify({"error": "Failed to delete user"}), 400
 
 database.init_db()
 
