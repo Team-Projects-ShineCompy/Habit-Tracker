@@ -81,14 +81,6 @@ def init_db():
             else:
                 # Inline Postgres DDL ensuring JSONB and proper SERIAL keys
                 cursor.execute("""
-                CREATE TABLE IF NOT EXISTS "user" (
-                    id SERIAL PRIMARY KEY,
-                    email TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-                
                 CREATE TABLE IF NOT EXISTS habit (
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL,
@@ -98,7 +90,7 @@ def init_db():
                     repeat_type TEXT NOT NULL,
                     repeat_pattern JSONB NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                 );
                 
                 CREATE TABLE IF NOT EXISTS habit_log (
@@ -112,31 +104,10 @@ def init_db():
                     FOREIGN KEY (habit_id) REFERENCES habit(id) ON DELETE CASCADE
                 );
 
-                CREATE TABLE IF NOT EXISTS otp_verification (
-                    id SERIAL PRIMARY KEY,
-                    email TEXT NOT NULL,
-                    otp_hash TEXT NOT NULL,
-                    purpose TEXT NOT NULL,
-                    expires_at TIMESTAMP NOT NULL,
-                    attempts INTEGER NOT NULL DEFAULT 0,
-                    verified BOOLEAN NOT NULL DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_sent_at TIMESTAMP NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_otp_email_purpose ON otp_verification(email, purpose, id);
                 """)
         else:
-            # SQLite DDL
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS "user" (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            """)
-
+            # SQLite is retained only for local application-data inspection.
+            # Login requires DATABASE_URL because the shared users table is PostgreSQL-owned.
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS habit (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -147,7 +118,7 @@ def init_db():
                 repeat_type TEXT NOT NULL,
                 repeat_pattern TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );
             """)
 
@@ -164,23 +135,6 @@ def init_db():
             );
             """)
 
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS otp_verification (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT NOT NULL,
-                otp_hash TEXT NOT NULL,
-                purpose TEXT NOT NULL,
-                expires_at TIMESTAMP NOT NULL,
-                attempts INTEGER NOT NULL DEFAULT 0,
-                verified INTEGER NOT NULL DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_sent_at TIMESTAMP NOT NULL
-            );
-            """)
-            cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_otp_email_purpose
-            ON otp_verification(email, purpose, id);
-            """)
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -191,149 +145,21 @@ def init_db():
         conn.close()
 
 
-def create_user(email, password_hash):
-    """Insert a new user."""
-    conn, db_type = get_db()
-    cursor = conn.cursor()
-
-    try:
-        if db_type == "postgres":
-            cursor.execute(
-                'INSERT INTO "user" (email, password_hash) VALUES (%s, %s) RETURNING id;',
-                (email, password_hash)
-            )
-            user_id = cursor.fetchone()['id']
-        else:
-            cursor.execute(
-                'INSERT INTO "user" (email, password_hash) VALUES (?, ?);',
-                (email, password_hash)
-            )
-            user_id = cursor.lastrowid
-        conn.commit()
-        return user_id
-    except Exception as e:
-        conn.rollback()
-        print(f"[DB Error] create_user: {e}")
-        return None
-    finally:
-        cursor.close()
-        conn.close()
-
-
 def get_user_by_email(email):
-    """Fetch user dict by email."""
+    """Fetch the verified identity record from the Auth Service users table."""
     conn, db_type = get_db()
     cursor = conn.cursor()
 
-    try:
-        if db_type == "postgres":
-            cursor.execute('SELECT * FROM "user" WHERE email = %s;', (email,))
-            row = cursor.fetchone()
-        else:
-            cursor.execute('SELECT * FROM "user" WHERE email = ?;', (email,))
-            row = cursor.fetchone()
-            if row:
-                row = dict(row)
-        return row
-    finally:
-        cursor.close()
-        conn.close()
-
-
-def create_otp(email, otp_hash, purpose, expires_at, sent_at):
-    """Invalidate older codes for this email/purpose and save the newest code."""
-    conn, db_type = get_db()
-    cursor = conn.cursor()
     try:
         placeholder = "%s" if db_type == "postgres" else "?"
         cursor.execute(
-            f"UPDATE otp_verification SET verified = {('TRUE' if db_type == 'postgres' else '1')} "
-            f"WHERE email = {placeholder} AND purpose = {placeholder} AND verified = {('FALSE' if db_type == 'postgres' else '0')};",
-            (email, purpose)
-        )
-        if db_type == "postgres":
-            cursor.execute(
-                """INSERT INTO otp_verification
-                (email, otp_hash, purpose, expires_at, last_sent_at)
-                VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
-                (email, otp_hash, purpose, expires_at, sent_at)
-            )
-            otp_id = cursor.fetchone()['id']
-        else:
-            cursor.execute(
-                """INSERT INTO otp_verification
-                (email, otp_hash, purpose, expires_at, last_sent_at)
-                VALUES (?, ?, ?, ?, ?);""",
-                (email, otp_hash, purpose, expires_at.isoformat(), sent_at.isoformat())
-            )
-            otp_id = cursor.lastrowid
-        conn.commit()
-        return otp_id
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        cursor.close()
-        conn.close()
-
-
-def get_latest_otp(email, purpose):
-    """Return the newest unverified OTP record for an email and purpose."""
-    conn, db_type = get_db()
-    cursor = conn.cursor()
-    try:
-        placeholder = "%s" if db_type == "postgres" else "?"
-        cursor.execute(
-            f"SELECT * FROM otp_verification WHERE email = {placeholder} AND purpose = {placeholder} "
-            "AND verified = " + ("FALSE" if db_type == "postgres" else "0") + " ORDER BY id DESC LIMIT 1;",
-            (email, purpose)
+            f'SELECT id, email, password_hash, is_verified FROM users WHERE email = {placeholder};',
+            (email,)
         )
         row = cursor.fetchone()
         if row and db_type == "sqlite":
             row = dict(row)
         return row
-    finally:
-        cursor.close()
-        conn.close()
-
-
-def update_otp_attempts(otp_id, attempts, invalidate=False):
-    conn, db_type = get_db()
-    cursor = conn.cursor()
-    try:
-        placeholder = "%s" if db_type == "postgres" else "?"
-        verified = "TRUE" if db_type == "postgres" and invalidate else "1" if invalidate else "FALSE" if db_type == "postgres" else "0"
-        cursor.execute(
-            f"UPDATE otp_verification SET attempts = {placeholder}, verified = {verified} WHERE id = {placeholder};",
-            (attempts, otp_id)
-        )
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        cursor.close()
-        conn.close()
-
-
-def mark_otp_verified(otp_id):
-    update_otp_attempts(otp_id, 0, invalidate=True)
-
-
-def update_user_password(user_id, password_hash):
-    conn, db_type = get_db()
-    cursor = conn.cursor()
-    try:
-        placeholder = "%s" if db_type == "postgres" else "?"
-        cursor.execute(
-            f'UPDATE "user" SET password_hash = {placeholder}, updated_at = CURRENT_TIMESTAMP WHERE id = {placeholder};',
-            (password_hash, user_id)
-        )
-        conn.commit()
-        return cursor.rowcount == 1
-    except Exception:
-        conn.rollback()
-        raise
     finally:
         cursor.close()
         conn.close()
@@ -537,16 +363,14 @@ def get_user_habit_logs(user_id):
         conn.close()
 
 def get_all_users():
-    """Fetch all users (id, email, created_at only — never password_hash)."""
+    """Fetch shared Auth Service users without exposing password hashes."""
     conn, db_type = get_db()
     cursor = conn.cursor()
     try:
-        if db_type == "postgres":
-            cursor.execute('SELECT id, email, created_at FROM "user" ORDER BY created_at DESC;')
-            rows = cursor.fetchall()
-        else:
-            cursor.execute('SELECT id, email, created_at FROM "user" ORDER BY created_at DESC;')
-            rows = [dict(row) for row in cursor.fetchall()]
+        cursor.execute('SELECT id, email, created_at FROM users ORDER BY created_at DESC;')
+        rows = cursor.fetchall()
+        if db_type == "sqlite":
+            rows = [dict(row) for row in rows]
         return rows
     finally:
         cursor.close()
@@ -554,44 +378,16 @@ def get_all_users():
 
 
 def get_user_by_id(user_id):
-    """Fetch a single user's public info by id (never password_hash)."""
+    """Fetch a shared Auth Service user's public info."""
     conn, db_type = get_db()
     cursor = conn.cursor()
     try:
-        if db_type == "postgres":
-            cursor.execute('SELECT id, email, created_at FROM "user" WHERE id = %s;', (user_id,))
-            row = cursor.fetchone()
-        else:
-            cursor.execute('SELECT id, email, created_at FROM "user" WHERE id = ?;', (user_id,))
-            row = cursor.fetchone()
-            if row:
-                row = dict(row)
+        placeholder = "%s" if db_type == "postgres" else "?"
+        cursor.execute(f'SELECT id, email, created_at FROM users WHERE id = {placeholder};', (user_id,))
+        row = cursor.fetchone()
+        if row and db_type == "sqlite":
+            row = dict(row)
         return row
-    finally:
-        cursor.close()
-        conn.close()
-
-
-def delete_user(user_id):
-    """Delete a user and manually cascade-delete their habits + habit_logs
-    (explicit cascade, not relying on SQLite FK pragma being enabled)."""
-    conn, db_type = get_db()
-    cursor = conn.cursor()
-    try:
-        if db_type == "postgres":
-            cursor.execute("DELETE FROM habit_log WHERE habit_id IN (SELECT id FROM habit WHERE user_id = %s);", (user_id,))
-            cursor.execute("DELETE FROM habit WHERE user_id = %s;", (user_id,))
-            cursor.execute('DELETE FROM "user" WHERE id = %s;', (user_id,))
-        else:
-            cursor.execute("DELETE FROM habit_log WHERE habit_id IN (SELECT id FROM habit WHERE user_id = ?);", (user_id,))
-            cursor.execute("DELETE FROM habit WHERE user_id = ?;", (user_id,))
-            cursor.execute('DELETE FROM "user" WHERE id = ?;', (user_id,))
-        conn.commit()
-        return True
-    except Exception as e:
-        conn.rollback()
-        print(f"[DB Error] delete_user: {e}")
-        raise
     finally:
         cursor.close()
         conn.close()
