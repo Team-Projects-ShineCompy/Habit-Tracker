@@ -1,71 +1,86 @@
-function loadAdminUsers() {
-    fetch('/api/admin/users', { credentials: 'include' }).then(async (response) => {
-        if (response.status === 401) {
-            window.location.href = '/admin/login';
-            return;
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="t_p_2.4.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        .admin_wrap {
+            padding: 25px;
+            color: #eff3f4;
         }
-        const body = await response.json();
-        const users = body.users || [];
-        const tbody = $('#adminUserTableBody');
-        tbody.empty();
 
-        if (!users.length) {
-            tbody.html('<tr><td colspan="3">No users found.</td></tr>');
-            return;
+        .admin_logout {
+            float: right;
+            background: none;
+            border: 1px solid #2dcdf5;
+            color: #2dcdf5;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
         }
 
-        users.forEach((user) => {
-            const row = $(
-                '<tr>' +
-                '  <td>' + user.email + '</td>' +
-                '  <td>' + (user.created_at || '') + '</td>' +
-                '  <td class="delete_cell"><button class="delete_user_btn"><i class="fa-solid fa-trash"></i></button></td>' +
-                '</tr>'
-            );
-
-            row.on('click', function (e) {
-                if ($(e.target).closest('.delete_user_btn').length) return;
-                window.location.href = '/admin/user/' + user.id;
-            });
-
-            row.find('.delete_user_btn').on('click', function (e) {
-                e.stopPropagation();
-                if (!window.confirm('Delete user "' + user.email + '"? This will permanently remove all their habits and logs.')) return;
-
-                fetch('/api/admin/user/' + user.id, {
-                    method: 'DELETE',
-                    credentials: 'include'
-                }).then((response) => {
-                    if (!response.ok) {
-                        return response.json().then((body) => Promise.reject(new Error(body.error || 'Delete failed.')));
-                    }
-                    loadAdminUsers();
-                }).catch((error) => {
-                    alert(error.message || 'Unable to delete user.');
-                });
-            });
-
-            tbody.append(row);
-        });
-    }).catch(() => {
-        $('#adminUserTableBody').html('<tr><td colspan="3">Unable to load users.</td></tr>');
-    });
-}
-
-$(document).ready(function () {
-    fetch('/api/admin/me', { credentials: 'include' }).then((response) => {
-        if (!response.ok) {
-            window.location.href = '/admin/login';
-            return;
+        table.admin_user_table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
         }
-        loadAdminUsers();
-    }).catch(() => {
-        window.location.href = '/admin/login';
-    });
 
-    $('#adminLogoutBtn').on('click', function () {
-        fetch('/api/admin/logout', { method: 'POST', credentials: 'include' }).finally(() => {
-            window.location.href = '/admin/login';
-        });
-    });
-});
+        table.admin_user_table th,
+        table.admin_user_table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        table.admin_user_table th {
+            color: #2dcdf5;
+        }
+
+        table.admin_user_table tr {
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        table.admin_user_table tr:hover {
+            background-color: rgba(45, 205, 245, 0.1);
+        }
+
+        table.admin_user_table td.delete_cell {
+            text-align: right;
+        }
+
+        table.admin_user_table button.delete_user_btn {
+            background: none;
+            border: none;
+            color: #f45c5c;
+            cursor: pointer;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+
+<body style="background: rgba(1,13,23,0.9); display:block; height: auto; min-height: 100vh;">
+    <div class="admin_wrap">
+        <button class="admin_logout" id="adminLogoutBtn">Logout</button>
+        <h2><i class="fa-solid fa-user-shield"></i> Admin Panel — Users</h2>
+        <table class="admin_user_table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody id="adminUserTableBody"></tbody>
+        </table>
+    </div>
+
+    <script src="jquery.min.js"></script>
+    <script src="admin.js"></script>
+    <link rel="stylesheet" href="/t_p_2.4.css">
+</body>
+
+</html>
