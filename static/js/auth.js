@@ -83,50 +83,6 @@ const Auth = {
     }
 };
 
-// Handle register form submission
-async function handleRegister(event) {
-    event.preventDefault();
-
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value;
-    const confirmPassword = document.getElementById("confirmPassword").value;
-    const errorMessage = document.getElementById("errorMessage");
-
-    if (!email || !password) {
-        errorMessage.innerText = "Please fill in all fields.";
-        return;
-    }
-
-    if (password !== confirmPassword) {
-        errorMessage.innerText = "Passwords do not match.";
-        return;
-    }
-
-    try {
-        errorMessage.innerText = "";
-        const response = await fetch("/api/register", {
-            method: "POST",
-            credentials: "include",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ email, password })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            alert(data.message || "Registration successful! Please log in.");
-            window.location.href = "/login";
-        } else {
-            errorMessage.innerText = data.error || data.message || "Registration failed.";
-        }
-    } catch (error) {
-        console.error("Register error:", error);
-        errorMessage.innerText = "Failed to connect to the server.";
-    }
-}
-
 // Handle login form submission
 async function handleLogin(event) {
     event.preventDefault();
